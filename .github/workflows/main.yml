@@ -1,13 +1,12 @@
-name: Build and Deploy LaTeX Projects with TikZ Support
+name: Latex Tikz Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -28,9 +27,6 @@ jobs:
       - name: Add TeX Live to PATH
         run: echo "/usr/bin" >> $GITHUB_PATH
 
-      - name: Create tex4ht TikZ config file
-        run: echo 'Preamble{"\\def\\pgfsysdriver{pgfsys-tex4ht.def}"}' > tikz.cfg
-
       - name: Convert .tex files to HTML with TikZ support
         run: |
           mkdir -p _converted
@@ -39,8 +35,8 @@ jobs:
               texfile=$(basename "$d"*.tex)
               name="${texfile%.tex}"
               mkdir -p "_converted/$d"
-              cp tikz.cfg "$d"
-              make4ht -u -f html5 -c tikz.cfg "$d/$texfile" "mathjax,svg" --shell-escape
+              sed -i 's/\\documentclass/\\def\\pgfsysdriver{pgfsys-tex4ht.def}\\documentclass/' "$d/$texfile"
+              make4ht -u -f html5 "$d/$texfile" "mathjax,svg" --shell-escape
               mv "$name.html" "_converted/$d/" || true
             fi
           done
@@ -56,9 +52,7 @@ jobs:
           for dir in _converted/*/ ; do
             projname=$(basename "$dir")
             link=$(find "$dir" -name "*.html" | head -n 1)
-            if [ -f "$link" ]; then
-              echo "<div class='card'><h2>$projname</h2><a href='${link#_converted/}'>View Site</a></div>" >> index.html
-            fi
+            [ -f "$link" ] && echo "<div class='card'><h2>$projname</h2><a href='${link#_converted/}'>View Site</a></div>" >> index.html
           done
           echo '</body></html>' >> index.html
 
