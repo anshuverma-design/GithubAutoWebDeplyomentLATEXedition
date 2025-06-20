@@ -1,4 +1,4 @@
-name: Build and Deploy LaTeX Projects with TikZ Support
+name: Build and Deploy LaTeX Projects with TikZ Support1.0
 on:
   push:
     branches: [ main ]
