@@ -9,23 +9,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up TeX Live
-        uses: teatimeguest/setup-texlive-action@v2
-        with:
-          packages: >
-            collection-latexrecommended
-            collection-fontsrecommended
-            make4ht
-            tex4ht
+      - name: Install TeX Live manually (2025)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-full
 
       - name: Find and convert LaTeX files
         run: |
-          sudo apt-get update && sudo apt-get install -y tex4ht make4ht
           mkdir -p _converted
           for d in */ ; do
             if [ -f "$d"/*.tex ]; then
