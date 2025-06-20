@@ -1,4 +1,5 @@
-name: Build and Deploy LaTeX Projects with TikZ Support1.0
+name: Build and Deploy LaTeX Projects with TikZ Support
+
 on:
   push:
     branches: [ main ]
@@ -6,25 +7,24 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Restore TeX Live cache
-        id: cache-texlive
-        uses: actions/cache@v3
-        with:
-          path: /opt/texlive
-          key: texlive-2025-full
-
-      - name: Install TeX Live manually if cache not found
-        if: steps.cache-texlive.outputs.cache-hit != 'true'
+      - name: Setup manual TeX Live installation
         run: |
-          sudo apt-get update
-          sudo apt-get install -y texlive-full
+          mkdir -p texlive && cd texlive
+          wget http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
+          tar -xzf install-tl-unx.tar.gz --strip-components=1
+          echo "selected_scheme scheme-full" > texlive.profile
+          ./install-tl --profile=texlive.profile --no-interaction
+          echo "::set-output name=texlive_installed::true"
+        id: setup-texlive
 
       - name: Add TeX Live to PATH
-        run: echo "/usr/bin" >> $GITHUB_PATH
+        run: |
+          echo "${GITHUB_WORKSPACE}/texlive/bin/x86_64-linux" >> $GITHUB_PATH
 
       - name: Convert .tex files to HTML with TikZ support
         run: |
@@ -35,8 +35,10 @@ jobs:
               name="${texfile%.tex}"
               mkdir -p "_converted/$d"
               sed -i 's/\\documentclass/\\def\\pgfsysdriver{pgfsys-tex4ht.def}\\documentclass/' "$d/$texfile"
-              make4ht -u -f html5 --shell-escape "$d/$texfile" "mathjax,svg"
-              mv "$name.html" "_converted/$d/" || true
+              cd "$d"
+              make4ht -u -f html5 "$texfile" "mathjax,svg" --shell-escape
+              cd ..
+              cp -r "$d"/*.html "$d"/*.svg "$d"/*.css "$d"/*.js "$d"/*.png "$d"/*.jpg "$d"/*.gif "$d"/*.xml "$d"/*.idv "$d"/*.lg "$d"/*.tmp "$d"/*.xref _converted/"$d" 2>/dev/null || true
             fi
           done
 
@@ -50,8 +52,9 @@ jobs:
           </style></head><body><h1>Available Projects</h1>' > index.html
           for dir in _converted/*/ ; do
             projname=$(basename "$dir")
-            link=$(find "$dir" -name "*.html" | head -n 1)
-            [ -f "$link" ] && echo "<div class='card'><h2>$projname</h2><a href='${link#_converted/}'>View Site</a></div>" >> index.html
+            if [ -f "$dir"/*.html ]; then
+              echo "<div class='card'><h2>$projname</h2><a href='_converted/$projname/'>View Site</a></div>" >> index.html
+            fi
           done
           echo '</body></html>' >> index.html
 
@@ -60,3 +63,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
+          force_orphan: true
