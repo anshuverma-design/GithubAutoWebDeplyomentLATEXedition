@@ -1,0 +1,63 @@
+name: Convert LaTeX to HTML and Generate Index
+
+on:
+  push:
+    paths:
+      - '**.tex'
+      - '**/'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up TeX Live
+        uses: teatimeguest/setup-texlive-action@v2
+        with:
+          packages: >
+            collection-latexrecommended
+            collection-fontsrecommended
+            make4ht
+            tex4ht
+
+      - name: Find and convert LaTeX files
+        run: |
+          sudo apt-get update && sudo apt-get install -y tex4ht make4ht
+          mkdir -p _converted
+          for d in */ ; do
+            if [ -f "$d"/*.tex ]; then
+              mkdir -p "_converted/$d"
+              make4ht -u -f html5 "$d"/*.tex "mathjax"
+              mv "$d"/*.html "_converted/$d"
+            fi
+          done
+
+      - name: Generate index.html with vCards
+        run: |
+          echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Project Index</title><style>body{font-family:sans-serif;background:#f9f9f9;padding:20px;} .card{background:#fff;border-radius:10px;padding:20px;margin:10px;box-shadow:0 0 10px rgba(0,0,0,0.1);} .card a{text-decoration:none;font-weight:bold;font-size:18px;color:#333;}</style></head><body><h1>Available Projects</h1>' > index.html
+          for d in _converted/* ; do
+            projname=$(basename "$d")
+            if [ -f "$d"/*.html ]; then
+              htmlfile=$(basename "$d"/*.html)
+              echo "<div class='card'><a href='./_converted/$projname/$htmlfile'>$projname</a></div>" >> index.html
+            fi
+          done
+          echo '</body></html>' >> index.html
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add _converted index.html
+          git commit -m 'Auto-convert LaTeX to HTML and update index' || echo "No changes to commit"
+          git push
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          publish_branch: gh-pages
