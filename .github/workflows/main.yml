@@ -1,5 +1,4 @@
-name: Latex Tikz Deploy
-
+name: Build and Deploy LaTeX Projects with TikZ Support
 on:
   push:
     branches: [ main ]
@@ -36,7 +35,7 @@ jobs:
               name="${texfile%.tex}"
               mkdir -p "_converted/$d"
               sed -i 's/\\documentclass/\\def\\pgfsysdriver{pgfsys-tex4ht.def}\\documentclass/' "$d/$texfile"
-              make4ht -u -f html5 "$d/$texfile" "mathjax,svg" --shell-escape
+              make4ht -u -f html5 --shell-escape "$d/$texfile" "mathjax,svg"
               mv "$name.html" "_converted/$d/" || true
             fi
           done
